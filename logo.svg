@@ -1,22 +1,12 @@
 <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-    <!-- Gradient Definitions -->
     <defs>
         <linearGradient id="blueGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" style="stop-color:#00D2FF;stop-opacity:1" />
             <stop offset="100%" style="stop-color:#3A7BD5;stop-opacity:1" />
         </linearGradient>
     </defs>
-    
-    <!-- Shield/Data Block Back -->
-    <rect x="40" y="40" width="120" height="120" rx="20" fill="#263238" />
-    
-    <!-- Merging Streams (Fusion) -->
-    <circle cx="85" cy="100" r="35" fill="url(#blueGrad)" opacity="0.8" />
-    <circle cx="115" cy="100" r="35" fill="url(#blueGrad)" opacity="0.8" />
-    
-    <!-- Central Dedup Indicator (The Core) -->
-    <path d="M90 100 L110 100 M100 90 L100 110" stroke="white" stroke-width="8" stroke-linecap="round" />
-    
-    <!-- Glow Effect -->
-    <circle cx="100" cy="100" r="10" fill="white" opacity="0.5" />
+    <rect x="0" y="0" width="200" height="200" rx="40" fill="#263238" />
+    <circle cx="85" cy="100" r="40" fill="url(#blueGrad)" opacity="0.9" />
+    <circle cx="115" cy="100" r="40" fill="url(#blueGrad)" opacity="0.9" />
+    <path d="M80 100 L120 100 M100 80 L100 120" stroke="white" stroke-width="12" stroke-linecap="round" />
 </svg>

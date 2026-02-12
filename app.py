@@ -7,12 +7,15 @@ from outputs import generate_outputs
 
 st.set_page_config(page_title="DataFusion Dedup AI", page_icon="🏢", layout="wide")
 
+# Side-bar Branding (Non-disruptive)
+st.logo("logo.svg", icon_image="logo.svg")
+
 st.title("🏢 DataFusion Dedup AI")
 st.markdown("### Enterprise-grade Company Deduplication & Data Enrichment")
 
 # Sidebar Configuration
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 11:00 PM")
+st.sidebar.caption("Last Sync: Feb 12, 11:15 PM")
 st.sidebar.info("🚀 Parallel Multitasking Enabled")
 
 hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)

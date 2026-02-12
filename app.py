@@ -20,14 +20,24 @@ with col_title:
 
 # Sidebar Configuration
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 11:59 PM")
-st.sidebar.success("🚀 Version 2.1 (Enhanced UI + Batch Processing)")
+st.sidebar.caption("Last Sync: Feb 12, 11:30 PM")
+st.sidebar.success("🚀 Version 2.2 (Agentic AI Enabled)")
 
-hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)
-soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.00, 1.00, 0.85, 0.01)
+# Standard Thresholds
+with st.sidebar.expander("Clustering Thresholds", expanded=True):
+    hard_thresh = st.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)
+    soft_thresh = st.slider("Soft Threshold (Token Match)", 0.00, 1.00, 0.85, 0.01)
 
-web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Parallelized for speed.")
-enrichment = st.sidebar.checkbox("Enable Website & Industry Enrichment", value=False, help="Finds company domains and classifies industries. Parallelized for speed.")
+# Agentic AI Mode (NEW & OPTIONAL)
+with st.sidebar.expander("🤖 Agentic AI Researcher", expanded=False):
+    agentic_mode = st.checkbox("Enable Agentic Mode", value=False, help="Uses AI to research and verify company names. Requires Gemini API Key.")
+    gemini_key = st.text_input("Gemini API Key", type="password", help="Get your key from Google AI Studio.")
+    if agentic_mode and not gemini_key:
+        st.warning("Please provide a Gemini API Key to use Agentic Mode.")
+
+# Standard Options
+web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Parallelized.")
+enrichment = st.sidebar.checkbox("Enable Website & Industry Enrichment", value=False, help="Finds company domains and classifies industries.")
 no_subsidiary_fold = st.sidebar.checkbox("Disable Subsidiary Folding", value=False)
 
 st.sidebar.subheader("Custom Mappings")
@@ -86,9 +96,11 @@ with tab1:
                     'hard': hard_thresh,
                     'soft': soft_thresh,
                     'no_subsidiary_fold': no_subsidiary_fold,
-                    'web_search': web_search,
+                    'web_search': web_search or agentic_mode, # Agentic implies web search
                     'enrichment': enrichment,
-                    'add_map': add_map
+                    'add_map': add_map,
+                    'agentic_mode': agentic_mode,
+                    'gemini_api_key': gemini_key
                 }
                 
                 engine = CompanyDedupEngine(settings=settings)
@@ -120,11 +132,12 @@ with tab1:
 with tab2:
     st.header("App Documentation & Multitasking Guide")
     
-    st.subheader("🚀 New: Parallel Multitasking")
+    st.subheader("🚀 New: Agentic AI & Multitasking")
     st.write("""
-    This version of DataFusion Dedup AI is supercharged with **Parallel Multitasking**:
-    - **Multithreaded Search**: Web enrichment now runs on multiple threads, making it 5-10x faster.
-    - **Batch Processing**: You can now upload multiple files at once. The app will queue them and provide separate downloads for each.
+    This version of DataFusion Dedup AI features a high-reliability **Agentic AI Researcher**:
+    - **Intelligent Reasoning**: If you provide a Gemini API Key, the app uses LLMs to "read" search results and verify if two companies are truly the same.
+    - **Parallel Processing**: Web searches and AI enrichment run on multiple threads, making it 5-10x faster.
+    - **Batch Support**: Process multiple files at once and track progress with global bars.
     """)
 
     st.subheader("1. What is DataFusion Dedup AI?")

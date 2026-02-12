@@ -4,6 +4,7 @@ import jellyfish
 from collections import defaultdict
 from ddgs import DDGS
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import google.generativeai as genai
 
 class CompanyDedupEngine:
     def __init__(self, settings=None):
@@ -140,6 +141,47 @@ class CompanyDedupEngine:
 
         return "Diversified/Other"
 
+    def agentic_research(self, model, name):
+        """Use Gemini AI to research a company and provide highly accurate normalization."""
+        if not name: return None
+        try:
+            # Step 1: Search for snippets
+            with DDGS() as ddgs:
+                results = list(ddgs.text(f"official legal name and website of company {name}", max_results=5))
+                snippets = "\n".join([f"- {r.get('body', '')}" for r in results])
+            
+            if not snippets: return None
+
+            # Step 2: Prompt LLM
+            prompt = f"""
+            You are an expert data researcher. Your task is to identify the official legal name of a company based on search snippets.
+            
+            Input Name: {name}
+            
+            Search Results:
+            {snippets}
+            
+            Analyze the snippets and identify:
+            1. The full official legal name (e.g., "Apple Inc." or "Microsoft Corporation").
+            2. A brief 1-sentence reason for your choice.
+            
+            Respond STRICTLY in JSON format:
+            {{"name": "OFFICIAL_NAME", "reason": "REASON"}}
+            """
+            
+            response = model.generate_content(prompt)
+            # Basic JSON extraction
+            text = response.text.strip()
+            if "```json" in text:
+                text = text.split("```json")[1].split("```")[0].strip()
+            
+            import json
+            data = json.loads(text)
+            return data
+        except Exception as e:
+            print(f"AI Research failed for {name}: {e}")
+            return None
+
     def get_base_name(self, name):
         norm = self.normalize(name)
         base = self.strip_suffixes(norm)
@@ -242,16 +284,37 @@ class CompanyDedupEngine:
                         to_verify.append((root, base, member_indices))
             
             if to_verify:
+                # Decide if we use AI or standard verification
+                api_key = self.settings.get('gemini_api_key')
+                use_ai = self.settings.get('agentic_mode', False) and api_key
+                
+                if use_ai:
+                    genai.configure(api_key=api_key)
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                
                 with ThreadPoolExecutor(max_workers=5) as executor:
-                    future_to_cluster = {executor.submit(self.web_verify, item[1]): item for item in to_verify}
+                    if use_ai:
+                        future_to_cluster = {executor.submit(self.agentic_research, model, item[1]): item for item in to_verify}
+                    else:
+                        future_to_cluster = {executor.submit(self.web_verify, item[1]): item for item in to_verify}
+                        
                     for future in as_completed(future_to_cluster):
                         root, base, member_indices = future_to_cluster[future]
                         try:
-                            web_canonical = future.result()
-                            if web_canonical and web_canonical != base.upper():
-                                for idx in member_indices:
-                                    rows[idx]['web_canonical'] = web_canonical
-                                    rows[idx]['reason'] += f" | Web verified: {web_canonical}"
+                            result = future.result()
+                            if isinstance(result, dict): # AI Result
+                                web_canonical = result.get('name')
+                                ai_reason = result.get('reason', '')
+                                if web_canonical and web_canonical.upper() != base.upper():
+                                    for idx in member_indices:
+                                        rows[idx]['web_canonical'] = web_canonical
+                                        rows[idx]['reason'] += f" | AI Verified: {ai_reason}"
+                            else: # Standard result
+                                web_canonical = result
+                                if web_canonical and web_canonical != base.upper():
+                                    for idx in member_indices:
+                                        rows[idx]['web_canonical'] = web_canonical
+                                        rows[idx]['reason'] += f" | Web verified: {web_canonical}"
                         except Exception:
                             pass
 

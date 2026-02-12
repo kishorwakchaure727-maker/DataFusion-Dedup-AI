@@ -3,3 +3,5 @@ pandas
 openpyxl
 jellyfish
 ddgs
+google-generativeai
+# Deploy v2.1.2 final

@@ -7,11 +7,48 @@ from outputs import generate_outputs
 
 st.set_page_config(page_title="DataFusion Dedup AI", page_icon="🏢", layout="wide")
 
-st.title("🏢 DataFusion Dedup AI")
-st.markdown("### Enterprise-grade Company Deduplication & Normalization")
+# Custom CSS for Branding
+st.markdown("""
+<style>
+    .main-header {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        margin-bottom: 30px;
+    }
+    .logo-img {
+        width: 80px;
+        border-radius: 10px;
+    }
+    .title-container h1 {
+        margin: 0;
+        color: #1E88E5;
+        font-weight: 800;
+    }
+    .title-container p {
+        margin: 0;
+        color: #757575;
+        font-size: 1.1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# App Header with Logo
+with open("logo.svg", "r") as f:
+    svg_data = f.read()
+
+st.markdown(f"""
+<div class="main-header">
+    <div class="logo-img">{svg_data}</div>
+    <div class="title-container">
+        <h1>DataFusion Dedup AI</h1>
+        <p>Enterprise-grade Company Deduplication & Data Enrichment</p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 10:25 PM")
+st.sidebar.caption("Last Sync: Feb 12, 10:45 PM")
 
 # Thresholds (Always visible)
 hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.80, 1.00, 0.90, 0.01)

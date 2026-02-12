@@ -34,6 +34,7 @@ if uploaded_file:
     
     # Options
     web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Slower but more accurate.")
+    enrichment = st.sidebar.checkbox("Enable Website & Industry Enrichment", value=False, help="Finds company domains and classifies industries.")
     no_subsidiary_fold = st.sidebar.checkbox("Disable Subsidiary Folding", value=False)
     
     # Custom Mappings
@@ -55,6 +56,7 @@ if uploaded_file:
                 'soft': soft_thresh,
                 'no_subsidiary_fold': no_subsidiary_fold,
                 'web_search': web_search,
+                'enrichment': enrichment,
                 'add_map': add_map
             }
             

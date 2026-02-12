@@ -23,6 +23,10 @@ def generate_outputs(processed_rows, settings, output_dir=None):
     cols = ['row_order', 'original_name', 'normalized_name', 'base_name', 
             'cluster_id', 'cluster_size', 'canonical_name', 'confidence', 'reason']
     
+    # Add enrichment columns if present
+    if 'website' in df_rows.columns:
+        cols.extend(['website', 'industry'])
+    
     summary = df_rows.groupby(['cluster_id', 'canonical_name']).size().reset_index(name='count')
     
     settings_data = {

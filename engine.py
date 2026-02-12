@@ -11,6 +11,7 @@ class CompanyDedupEngine:
         self.soft_threshold = self.settings.get('soft', 0.85)
         self.no_subsidiary_fold = self.settings.get('no_subsidiary_fold', False)
         self.enable_web_search = self.settings.get('web_search', False)
+        self.enable_enrichment = self.settings.get('enrichment', False)
         
         # Legal Suffixes (ordered by length descending to avoid partial matches)
         self.suffixes = sorted([
@@ -83,6 +84,60 @@ class CompanyDedupEngine:
         except Exception as e:
             print(f"Web search failed for {name}: {e}")
         return name
+
+    def find_domain(self, name):
+        """Use DuckDuckGo to find the official domain of the company."""
+        if not name: return ""
+        try:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(f"{name} official website", max_results=3))
+                for res in results:
+                    url = res.get('href', '')
+                    if url:
+                        # Extract domain using simple regex
+                        match = re.search(r'https?://(?:www\.)?([^/]+)', url)
+                        if match:
+                            domain = match.group(1).lower()
+                            # Basic filtering of non-company domains
+                            if not any(x in domain for x in ['linkedin.com', 'wikipedia.org', 'facebook.com', 'twitter.com', 'glassdoor.com']):
+                                return domain
+        except Exception:
+            pass
+        return ""
+
+    def classify_industry(self, name):
+        """Simple rule-based or search-based industry classification."""
+        if not name: return "Unknown"
+        
+        # Simple keywords mapping
+        keywords = {
+            'TECHNOLOGY': ['SOFTWARE', 'TECH', 'SaaS', 'COMPUTING', 'DIGITAL'],
+            'FINANCE': ['BANK', 'INVESTMENT', 'FINANCIAL', 'CAPITAL', 'INSURANCE'],
+            'HEALTHCARE': ['PHARMA', 'HOSPITAL', 'MEDICAL', 'HEALTH', 'BIOTECH'],
+            'RETAIL': ['STORE', 'SHOP', 'MARKET', 'COMMERCE'],
+            'MANUFACTURING': ['ENGINEERING', 'INDUSTRIAL', 'SYSTEMS', 'ELECTRONICS']
+        }
+        
+        norm_name = name.upper()
+        for industry, keys in keywords.items():
+            if any(k in norm_name for k in keys):
+                return industry
+
+        # Fallback to web search if enabled
+        if self.enable_web_search:
+            try:
+                with DDGS() as ddgs:
+                    results = list(ddgs.text(f"{name} industry sector", max_results=1))
+                    if results:
+                        # Very crude extraction from snippet
+                        snippet = results[0]['body'].upper()
+                        for industry in keywords.keys():
+                            if industry in snippet:
+                                return industry
+            except Exception:
+                pass
+
+        return "Diversified/Other"
 
     def get_base_name(self, name):
         norm = self.normalize(name)
@@ -209,6 +264,23 @@ class CompanyDedupEngine:
             for idx in member_indices:
                 rows[idx]['canonical_name'] = canonical
                 rows[idx]['cluster_size'] = size
+
+        # 6. Data Enrichment (Optional)
+        if self.enable_enrichment:
+            print("Performing data enrichment...")
+            # For efficiency, only enrich canonical names once per cluster
+            canonical_data = {}
+            for root, member_indices in clusters.items():
+                canonical = rows[member_indices[0]]['canonical_name']
+                if canonical not in canonical_data:
+                    domain = self.find_domain(canonical)
+                    industry = self.classify_industry(canonical)
+                    canonical_data[canonical] = {'website': domain, 'industry': industry}
+                
+                # Apply to all members
+                for idx in member_indices:
+                    rows[idx]['website'] = canonical_data[canonical]['website']
+                    rows[idx]['industry'] = canonical_data[canonical]['industry']
 
         return rows
 

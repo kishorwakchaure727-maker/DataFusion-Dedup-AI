@@ -11,6 +11,7 @@ st.title("🏢 DataFusion Dedup AI")
 st.markdown("### Enterprise-grade Company Deduplication & Normalization")
 
 st.sidebar.header("Settings")
+st.sidebar.caption("Last Sync: Feb 12, 10:15 PM")
 
 # File Upload
 uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "csv"])

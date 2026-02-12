@@ -1,49 +1,114 @@
-import os
+import streamlit as st
 import pandas as pd
+import os
+import io
 from engine import CompanyDedupEngine
 from outputs import generate_outputs
 
-def run_dedup(file_path, column=None, **kwargs):
-    print(f"Loading file: {file_path}")
-    if file_path.endswith('.csv'):
-        df = pd.read_csv(file_path)
+st.set_page_config(page_title="DataFusion Dedup AI", page_icon="🏢", layout="wide")
+
+st.title("🏢 DataFusion Dedup AI")
+st.markdown("### Enterprise-grade Company Deduplication & Normalization")
+
+st.sidebar.header("Settings")
+
+# File Upload
+uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "csv"])
+
+if uploaded_file:
+    # Load data
+    if uploaded_file.name.endswith(".csv"):
+        df = pd.read_csv(uploaded_file)
     else:
-        df = pd.read_excel(file_path)
+        df = pd.read_excel(uploaded_file)
+    
+    st.write(f"Loaded {len(df)} rows.")
+    
+    # Column selection
+    string_cols = df.select_dtypes(include=['object']).columns.tolist()
+    column = st.sidebar.selectbox("Select Company Name Column", string_cols)
+    
+    # Thresholds
+    hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.80, 1.00, 0.90, 0.01)
+    soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.70, 0.95, 0.85, 0.01)
+    
+    # Options
+    web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Slower but more accurate.")
+    no_subsidiary_fold = st.sidebar.checkbox("Disable Subsidiary Folding", value=False)
+    
+    # Custom Mappings
+    st.sidebar.subheader("Custom Mappings")
+    add_map_str = st.sidebar.text_area("Add Mappings (e.g. GE->GENERAL ELECTRIC; P&G->PROCTER & GAMBLE)", "")
+    
+    add_map = {}
+    if add_map_str:
+        for pair in add_map_str.split(";"):
+            if "->" in pair:
+                k, v = pair.split("->")
+                add_map[k.strip().upper()] = v.strip().upper()
 
-    if not column:
-        # Simple auto-detect: first column with string-like data
-        column = df.select_dtypes(include=['object']).columns[0]
-        print(f"Auto-detected column: {column}")
+    if st.button("🚀 Run Dedup"):
+        with st.spinner("Processing... This may take a moment."):
+            # Setup Engine
+            settings = {
+                'hard': hard_thresh,
+                'soft': soft_thresh,
+                'no_subsidiary_fold': no_subsidiary_fold,
+                'web_search': web_search,
+                'add_map': add_map
+            }
+            
+            engine = CompanyDedupEngine(settings=settings)
+            processed_rows = engine.process(df, column)
+            
+            # Generate outputs (in-memory)
+            results = generate_outputs(processed_rows, settings)
+            stats = results['stats']
+            
+            st.success("Deduplication Complete!")
+            
+            # Display Stats
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Rows", stats['total_rows'])
+            col2.metric("Clusters", stats['total_clusters'])
+            col3.metric("Multi-record Clusters", stats['multi_record_clusters'])
+            col4.metric("High-confidence Review", stats['high_confidence_review_rows'])
+            
+            # Download Buttons
+            st.markdown("### 📥 Download Results")
+            
+            st.download_button(
+                "Download Full Clusters (Final)", 
+                data=results['final'], 
+                file_name="company_duplicates_final.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+                
+            st.download_button(
+                "Download Golden Mapping", 
+                data=results['golden'], 
+                file_name="golden_mapping.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+                
+            st.download_button(
+                "Download High Confidence Review", 
+                data=results['review'], 
+                file_name="high_confidence_review.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            # Preview
+            st.markdown("### 🔍 Preview (First 50 rows)")
+            st.dataframe(pd.DataFrame(processed_rows).head(50))
 
-    engine = CompanyDedupEngine(settings=kwargs)
-    processed_rows = engine.process(df, column)
-    
-    output_dir = os.path.dirname(os.path.abspath(file_path))
-    stats = generate_outputs(processed_rows, kwargs, output_dir)
-    
-    print("\nProcessing Complete!")
-    print(f"Total Rows: {stats['total_rows']}")
-    print(f"Total Clusters: {stats['total_clusters']}")
-    print(f"Multi-record Clusters: {stats['multi_record_clusters']}")
-    print(f"High-confidence Review Rows: {stats['high_confidence_review_rows']}")
-    
-    return stats
-
-if __name__ == "__main__":
-    # Test with a dummy file if needed
-    test_data = {
-        'Company Name': [
-            'IBM India Pvt Ltd',
-            'IBM',
-            'TCS',
-            'Tata Consultancy Services Limited',
-            'Google LLC',
-            'Alphabet Inc',
-            'Microsoft',
-            'Ltd' # Empty case
-        ]
-    }
-    df_test = pd.DataFrame(test_data)
-    df_test.to_excel('test_input.xlsx', index=False)
-    
-    run_dedup('test_input.xlsx', column='Company Name', web_search=True)
+else:
+    st.info("Please upload a file to start.")
+    st.markdown("""
+    #### Supported Features:
+    - **Normalization**: Standardizes naming conventions.
+    - **Legal Suffix Stripping**: Removes LTD, LLC, INC, etc.
+    - **Subsidiary Folding**: Identifies 'Brand India' as 'Brand'.
+    - **Fuzzy Clustering**: Groups similar names based on similarity scores.
+    - **Web Verification**: (Optional) Live lookup for low-confidence clusters.
+    """)

@@ -15,8 +15,8 @@ st.markdown("### Enterprise-grade Company Deduplication & Data Enrichment")
 
 # Sidebar Configuration
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 11:15 PM")
-st.sidebar.info("🚀 Parallel Multitasking Enabled")
+st.sidebar.caption("Last Sync: Feb 12, 11:30 PM")
+st.sidebar.success("🚀 Version 2.0 (Multitasking + Logo)")
 
 hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)
 soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.00, 1.00, 0.85, 0.01)

@@ -11,7 +11,26 @@ st.title("🏢 DataFusion Dedup AI")
 st.markdown("### Enterprise-grade Company Deduplication & Normalization")
 
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 10:15 PM")
+st.sidebar.caption("Last Sync: Feb 12, 10:25 PM")
+
+# Thresholds (Always visible)
+hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.80, 1.00, 0.90, 0.01)
+soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.70, 0.95, 0.85, 0.01)
+
+# Options (Always visible)
+web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Slower but more accurate.")
+enrichment = st.sidebar.checkbox("Enable Website & Industry Enrichment", value=False, help="Finds company domains and classifies industries.")
+no_subsidiary_fold = st.sidebar.checkbox("Disable Subsidiary Folding", value=False)
+
+# Custom Mappings (Always visible)
+st.sidebar.subheader("Custom Mappings")
+add_map_str = st.sidebar.text_area("Add Mappings (e.g. GE->GENERAL ELECTRIC; P&G->PROCTER & GAMBLE)", "")
+add_map = {}
+if add_map_str:
+    for pair in add_map_str.split(";"):
+        if "->" in pair:
+            k, v = pair.split("->")
+            add_map[k.strip().upper()] = v.strip().upper()
 
 # File Upload
 uploaded_file = st.file_uploader("Upload your Excel or CSV file", type=["xlsx", "csv"])
@@ -27,27 +46,7 @@ if uploaded_file:
     
     # Column selection
     string_cols = df.select_dtypes(include=['object']).columns.tolist()
-    column = st.sidebar.selectbox("Select Company Name Column", string_cols)
-    
-    # Thresholds
-    hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.80, 1.00, 0.90, 0.01)
-    soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.70, 0.95, 0.85, 0.01)
-    
-    # Options
-    web_search = st.sidebar.checkbox("Enable Web Search Verification", value=False, help="Uses DuckDuckGo to verify low-confidence matches. Slower but more accurate.")
-    enrichment = st.sidebar.checkbox("Enable Website & Industry Enrichment", value=False, help="Finds company domains and classifies industries.")
-    no_subsidiary_fold = st.sidebar.checkbox("Disable Subsidiary Folding", value=False)
-    
-    # Custom Mappings
-    st.sidebar.subheader("Custom Mappings")
-    add_map_str = st.sidebar.text_area("Add Mappings (e.g. GE->GENERAL ELECTRIC; P&G->PROCTER & GAMBLE)", "")
-    
-    add_map = {}
-    if add_map_str:
-        for pair in add_map_str.split(";"):
-            if "->" in pair:
-                k, v = pair.split("->")
-                add_map[k.strip().upper()] = v.strip().upper()
+    column = st.selectbox("Select Company Name Column", string_cols)
 
     if st.button("🚀 Run Dedup"):
         with st.spinner("Processing... This may take a moment."):
@@ -114,4 +113,5 @@ else:
     - **Subsidiary Folding**: Identifies 'Brand India' as 'Brand'.
     - **Fuzzy Clustering**: Groups similar names based on similarity scores.
     - **Web Verification**: (Optional) Live lookup for low-confidence clusters.
+    - **Data Enrichment**: Finds domains and identifies industry sectors.
     """)

@@ -7,16 +7,21 @@ from outputs import generate_outputs
 
 st.set_page_config(page_title="DataFusion Dedup AI", page_icon="🏢", layout="wide")
 
-# Side-bar Branding (Non-disruptive)
+# Side-bar Branding (Subtle icon)
 st.logo("logo.svg", icon_image="logo.svg")
 
-st.title("🏢 DataFusion Dedup AI")
-st.markdown("### Enterprise-grade Company Deduplication & Data Enrichment")
+# Main Header with Logo
+col_logo, col_title = st.columns([0.1, 0.9])
+with col_logo:
+    st.image("logo.svg", width=80)
+with col_title:
+    st.title("DataFusion Dedup AI")
+    st.markdown("##### Enterprise-grade Company Deduplication & Data Enrichment")
 
 # Sidebar Configuration
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 11:30 PM")
-st.sidebar.success("🚀 Version 2.0 (Multitasking + Logo)")
+st.sidebar.caption("Last Sync: Feb 12, 11:55 PM")
+st.sidebar.success("🚀 Version 2.1 (Logo Refinement + Batch Support)")
 
 hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)
 soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.00, 1.00, 0.85, 0.01)

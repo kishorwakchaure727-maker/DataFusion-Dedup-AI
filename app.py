@@ -20,8 +20,8 @@ with col_title:
 
 # Sidebar Configuration
 st.sidebar.header("Settings")
-st.sidebar.caption("Last Sync: Feb 12, 11:55 PM")
-st.sidebar.success("🚀 Version 2.1 (Logo Refinement + Batch Support)")
+st.sidebar.caption("Last Sync: Feb 12, 11:59 PM")
+st.sidebar.success("🚀 Version 2.1 (Enhanced UI + Batch Processing)")
 
 hard_thresh = st.sidebar.slider("Hard Threshold (Strict Match)", 0.00, 1.00, 0.90, 0.01)
 soft_thresh = st.sidebar.slider("Soft Threshold (Token Match)", 0.00, 1.00, 0.85, 0.01)

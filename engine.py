@@ -3,6 +3,7 @@ import pandas as pd
 import jellyfish
 from collections import defaultdict
 from ddgs import DDGS
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class CompanyDedupEngine:
     def __init__(self, settings=None):
@@ -229,22 +230,30 @@ class CompanyDedupEngine:
                 rows[i]['confidence'] = 0.50
                 rows[i]['reason'] = "No base name after cleaning; kept as singleton"
 
-        # 4. Optional Web Search Verification for low confidence
+        # 4. Optional Web Search Verification for low confidence (Parallel)
         if self.enable_web_search:
-            print("Performing web verification for low-confidence clusters...")
+            print("Performing parallel web verification...")
+            to_verify = []
             for root, member_indices in clusters.items():
-                # Only check if size > 1 and confidence is still relatively low or if it's a singleton we want to verify
                 example_idx = member_indices[0]
                 if rows[example_idx]['confidence'] < 0.90:
                     base = rows[example_idx]['base_name']
                     if base:
-                        web_canonical = self.web_verify(base)
-                        if web_canonical and web_canonical != base.upper():
-                            # If web search gives a strong hit, we could potentially merge or just update canonical
-                            # For now, we update the base_name to help the canonical logic
-                            for idx in member_indices:
-                                rows[idx]['web_canonical'] = web_canonical
-                                rows[idx]['reason'] += f" | Web verified: {web_canonical}"
+                        to_verify.append((root, base, member_indices))
+            
+            if to_verify:
+                with ThreadPoolExecutor(max_workers=5) as executor:
+                    future_to_cluster = {executor.submit(self.web_verify, item[1]): item for item in to_verify}
+                    for future in as_completed(future_to_cluster):
+                        root, base, member_indices = future_to_cluster[future]
+                        try:
+                            web_canonical = future.result()
+                            if web_canonical and web_canonical != base.upper():
+                                for idx in member_indices:
+                                    rows[idx]['web_canonical'] = web_canonical
+                                    rows[idx]['reason'] += f" | Web verified: {web_canonical}"
+                        except Exception:
+                            pass
 
         # 5. Determine Canonical names
         for root, member_indices in clusters.items():
@@ -265,22 +274,34 @@ class CompanyDedupEngine:
                 rows[idx]['canonical_name'] = canonical
                 rows[idx]['cluster_size'] = size
 
-        # 6. Data Enrichment (Optional)
+        # 6. Data Enrichment (Parallel)
         if self.enable_enrichment:
-            print("Performing data enrichment...")
+            print("Performing parallel data enrichment...")
             # For efficiency, only enrich canonical names once per cluster
-            canonical_data = {}
-            for root, member_indices in clusters.items():
-                canonical = rows[member_indices[0]]['canonical_name']
-                if canonical not in canonical_data:
-                    domain = self.find_domain(canonical)
-                    industry = self.classify_industry(canonical)
-                    canonical_data[canonical] = {'website': domain, 'industry': industry}
+            canonical_list = list(set(rows[idx]['canonical_name'] for idx in range(len(rows))))
+            enriched_data = {}
+            
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # Submit domain finding
+                domain_futures = {executor.submit(self.find_domain, name): name for name in canonical_list}
+                # Submit industry classification
+                industry_futures = {executor.submit(self.classify_industry, name): name for name in canonical_list}
                 
-                # Apply to all members
-                for idx in member_indices:
-                    rows[idx]['website'] = canonical_data[canonical]['website']
-                    rows[idx]['industry'] = canonical_data[canonical]['industry']
+                # Collect domains
+                for future in as_completed(domain_futures):
+                    name = domain_futures[future]
+                    enriched_data.setdefault(name, {})['website'] = future.result()
+                
+                # Collect industries
+                for future in as_completed(industry_futures):
+                    name = industry_futures[future]
+                    enriched_data.setdefault(name, {})['industry'] = future.result()
+
+            # Apply to all rows
+            for i in range(len(rows)):
+                can = rows[i]['canonical_name']
+                rows[i]['website'] = enriched_data.get(can, {}).get('website', "")
+                rows[i]['industry'] = enriched_data.get(can, {}).get('industry', "Unknown")
 
         return rows
 
